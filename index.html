@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MZ REALIDE - easy code exp</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pyodide@0.24.1/pyodide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --accent: #8a2be2; /* Viola acceso */
+            --text: #e0e0e0;
+            --tab-active: rgba(255, 255, 255, 0.15);
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+        body, html {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            font-family: 'Inter', sans-serif; color: var(--text);
+            /* Sfondo viola profondo animato */
+            background: linear-gradient(-45deg, #1e0b36, #2d1055, #18082c, #0a0314);
+            background-size: 400% 400%; animation: gradientBG 20s ease infinite;
+            overflow: hidden; display: flex; flex-direction: column;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Classe Glassmorphism Universale */
+        .glass {
+            background: rgba(30, 15, 60, 0.35); /* Trasparenza viola */
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .topbar {
+            flex-shrink: 0; display: flex; gap: 10px; padding: 12px 20px;
+            z-index: 100; align-items: center; border-radius: 0 0 16px 16px;
+        }
+
+        button, select, input {
+            background: rgba(255, 255, 255, 0.05); color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 14px; border-radius: 8px;
+            cursor: pointer; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+            transition: all 0.2s; display: flex; align-items: center; gap: 6px; outline: none;
+        }
+
+        button:hover, select:hover { background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.3); }
+        .btn-run { background: var(--accent); color: white; border: none; font-weight: 600; }
+        .btn-run:hover { background: #9d4edd; box-shadow: 0 0 15px rgba(138, 43, 226, 0.5); }
+        .separator { width: 1px; height: 24px; background: rgba(255, 255, 255, 0.1); margin: 0 5px; }
+
+        .workspace {
+            flex-grow: 1; display: flex; flex-direction: column;
+            padding: 15px; gap: 0; overflow: hidden; position: relative;
+        }
+
+        #editor-container {
+            flex-grow: 1; min-height: 100px; border-radius: 12px; overflow: hidden;
+        }
+
+        .resizer {
+            height: 12px; cursor: row-resize; display: flex; justify-content: center; align-items: center;
+            opacity: 0.5; transition: opacity 0.2s;
+        }
+        .resizer::after { content: ""; display: block; width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+        .resizer:hover { opacity: 1; }
+        .resizer:hover::after { background: var(--accent); }
+
+        #bottom-panel {
+            height: 35%; min-height: 50px; border-radius: 12px;
+            display: flex; flex-direction: column; overflow: hidden;
+            transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #bottom-panel.collapsed { height: 0 !important; min-height: 0; opacity: 0; margin-top: -12px; border: none; }
+
+        .panel-tabs {
+            display: flex; background: rgba(0, 0, 0, 0.2); border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0 10px; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+        .tabs-left { display: flex; }
+        .tab-btn { background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 10px 15px; font-size: 13px; color: #aaa; }
+        .tab-btn.active { color: #fff; border-bottom: 2px solid var(--accent); background: var(--tab-active); }
+        .tab-btn:hover { color: #fff; }
+        .close-panel-btn { background: transparent; border: none; padding: 4px 8px; color: #aaa; }
+        .close-panel-btn:hover { color: white; background: rgba(255,0,0,0.3); }
+
+        .tab-content { flex-grow: 1; display: none; padding: 10px; overflow: auto; width: 100%; box-sizing: border-box; }
+        .tab-content.active { display: block; }
+        #terminal { width: 100%; height: 100%; }
+        #html-preview { width: 100%; height: 100%; border: none; background: #fff; border-radius: 6px; }
+        #grafici-wrapper { display: flex; flex-direction: column; gap: 15px; align-items: center; }
+        .plot-container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); max-width: 95%; }
+        .plot-container img { max-width: 100%; height: auto; border-radius: 4px; }
+
+        /* AI Panel Glassmorphism */
+        #ai-panel {
+            position: absolute; top: 15px; right: 15px; width: 350px; height: calc(100% - 30px);
+            border-radius: 12px; display: none; flex-direction: column; z-index: 50;
+        }
+        .ai-header { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.08); font-weight: 600; }
+        .ai-chat { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; font-size: 13px; line-height: 1.5; }
+        .ai-input-area { padding: 15px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 10px; }
+        .ai-msg { padding: 10px 12px; border-radius: 12px; max-width: 85%; }
+        .ai-msg.user { background: var(--accent); align-self: flex-end; }
+        .ai-msg.bot { background: rgba(0,0,0,0.3); align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); }
+        .ai-msg pre { background: rgba(0,0,0,0.5); padding: 8px; border-radius: 6px; overflow-x: auto; }
+        .ai-msg code { font-family: 'Consolas', monospace; }
+
+        /* Piastrina Copyright Galleggiante */
+        .copyright { 
+            position: fixed; bottom: 15px; right: 15px; 
+            font-size: 11px; color: rgba(255, 255, 255, 0.7); 
+            z-index: 10; pointer-events: none;
+            padding: 6px 14px; border-radius: 20px;
+            background: rgba(30, 15, 60, 0.4);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="topbar glass">
+        <button onclick="openFile()">📄 Apri File</button>
+        <button onclick="openFolder()" style="color: #f1c40f;">📁 Apri Cartella</button>
+        <button onclick="saveFile()">💾 Salva</button>
+        <div class="separator"></div>
+        <button onclick="installPackageModal()">📦 Pip</button>
+        <select id="lang-select" onchange="changeLanguage()">
+            <option value="python">Python</option>
+            <option value="html">HTML/JS</option>
+        </select>
+        <button onclick="togglePanel()" id="btn-toggle-panel">👁️ Pannello</button>
+        <button onclick="toggleAIPanel()" style="color: #d896ff; border-color: #d896ff;">🤖 Assistente IA</button>
+        <div style="flex-grow: 1;"></div>
+        <button class="btn-run" onclick="runCode()">▶ Esegui</button>
+    </div>
+
+    <div class="workspace" id="workspace">
+        <div id="editor-container" class="glass"></div>
+        <div class="resizer" id="resizer"></div>
+        
+        <div id="bottom-panel" class="glass">
+            <div class="panel-tabs">
+                <div class="tabs-left">
+                    <button class="tab-btn active" id="tab-term" onclick="switchTab('terminal')">>_ Terminale</button>
+                    <button class="tab-btn" id="tab-graf" onclick="switchTab('grafici')">📈 Grafici</button>
+                    <button class="tab-btn" id="tab-html" style="display: none;" onclick="switchTab('html')">🌐 Anteprima HTML</button>
+                </div>
+                <button class="close-panel-btn" onclick="togglePanel()" title="Nascondi per Schermo Intero">Nascondi 🔽</button>
+            </div>
+            
+            <div id="content-terminal" class="tab-content active" style="padding:0; background: rgba(0,0,0,0.5);">
+                <div id="terminal"></div>
+            </div>
+            <div id="content-grafici" class="tab-content">
+                <div id="grafici-wrapper"><span style="color:#aaa; font-style:italic;">I grafici generati appariranno qui.</span></div>
+            </div>
+            <div id="content-html" class="tab-content" style="padding:0;">
+                <iframe id="html-preview"></iframe>
+            </div>
+        </div>
+
+        <div id="ai-panel" class="glass">
+            <div class="ai-header">
+                <span>🤖 Gemini Copilot</span>
+                <button onclick="toggleAIPanel()" style="padding: 2px 8px; border:none; background:transparent;">✕</button>
+            </div>
+            <div class="ai-chat" id="ai-chat">
+                <div class="ai-msg bot">Ciao! Inserisci la tua chiave API per sbloccare la chat e il completamento automatico (Ghost Text) con il tasto Tab.</div>
+            </div>
+            <div class="ai-input-area">
+                <input type="text" id="ai-input" placeholder="Chiedi qualcosa..." style="flex-grow: 1; background: rgba(0,0,0,0.3);" onkeypress="if(event.key === 'Enter') askAI()">
+                <button onclick="askAI()" style="background: var(--accent); border: none;">Invia</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="copyright">© 2026 Myco Zennaro - All rights reserved.</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <script>
+        let editor, term, pyodideInstance;
+        let nativeDirectoryHandle = null;
+        let currentFileHandle = null; 
+
+        // Inizializzazione Terminale
+        term = new Terminal({
+            theme: { background: 'transparent', foreground: '#e0e0e0', cursor: '#8a2be2' },
+            fontFamily: 'Consolas, monospace', fontSize: 14, convertEol: true
+        });
+        term.open(document.getElementById('terminal'));
+        term.write('\x1b[35m[Sistema]\x1b[0m Inizializzazione Pyodide (Python)...\r\n');
+
+        // Inizializzazione Motore Python
+        async function initPyodide() {
+            pyodideInstance = await loadPyodide({ stdin: () => prompt("Input richiesto dal terminale:") });
+            await pyodideInstance.runPythonAsync(`
+import sys, base64, js
+def _custom_show(*args, **kwargs):
+    try:
+        import matplotlib.pyplot as plt
+        import io
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight')
+        buf.seek(0)
+        js.displayPlot(base64.b64encode(buf.read()).decode('utf-8'))
+        plt.clf()
+    except Exception as e: print(f"Errore grafico: {e}")
+sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
+            `);
+            term.write('\x1b[32m[Sistema]\x1b[0m Motore Python Pronto.\r\n');
+        }
+        initPyodide();
+
+        window.displayPlot = function(base64str) {
+            const wrapper = document.getElementById('grafici-wrapper');
+            if (wrapper.innerText.includes("appariranno qui")) wrapper.innerHTML = "";
+            const div = document.createElement('div');
+            div.className = 'plot-container';
+            div.innerHTML = `<img src="data:image/png;base64,${base64str}" />`;
+            wrapper.prepend(div);
+            if (!document.getElementById('bottom-panel').classList.contains('collapsed')) switchTab('grafici');
+        };
+
+        // Inizializzazione Editor e Autocompletamento IA (Copilot Style)
+        require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            editor = monaco.editor.create(document.getElementById('editor-container'), {
+                value: "", language: 'python', theme: 'vs-dark', automaticLayout: true,
+                minimap: { enabled: false }, overviewRulerLanes: 0, hideCursorInOverviewRuler: true,
+                scrollbar: { vertical: 'visible' }, fontFamily: 'Consolas', fontSize: 14, padding: { top: 15 },
+                inlineSuggest: { enabled: true } // Abilita i suggerimenti fantasma
+            });
+
+            // Tema per il Glassmorphism
+            monaco.editor.defineTheme('glass', {
+                base: 'vs-dark', inherit: true, rules: [{ background: 'transparent' }],
+                colors: { 'editor.background': '#00000000' }
+            });
+            monaco.editor.setTheme('glass');
+
+            // Logica per il Completamento IA
+            let debounceTimer;
+            monaco.languages.registerInlineCompletionsProvider('python', {
+                provideInlineCompletions: async function(model, position, context, token) {
+                    let apiKey = localStorage.getItem('gemini_api_key');
+                    if (!apiKey) return { items: [] };
+
+                    const textBeforeCursor = model.getValueInRange({
+                        startLineNumber: Math.max(1, position.lineNumber - 20), // Ultime 20 righe per contesto
+                        startColumn: 1,
+                        endLineNumber: position.lineNumber,
+                        endColumn: position.column
+                    });
+
+                    return new Promise((resolve) => {
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(async () => {
+                            if (token.isCancellationRequested) return resolve({ items: [] });
+                            
+                            try {
+                                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ 
+                                        contents: [{ parts: [{ text: `Completa il seguente codice Python in modo naturale. Restituisci SOLO il codice da aggiungere, senza formattazione markdown o spiegazioni:\n\n${textBeforeCursor}` }] }] 
+                                    })
+                                });
+                                const data = await response.json();
+                                let suggestion = data.candidates[0].content.parts[0].text;
+                                suggestion = suggestion.replace(/^```python\n/, '').replace(/\n```$/, ''); // Rimuove blocchi markdown
+
+                                resolve({
+                                    items: [{
+                                        insertText: suggestion,
+                                        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
+                                    }]
+                                });
+                            } catch (e) { resolve({ items: [] }); }
+                        }, 800); // 800ms di inattività prima di chiedere all'IA
+                    });
+                },
+                freeInlineCompletions: () => {}
+            });
+        });
+
+        // Gestione Interfaccia
+        function changeLanguage() {
+            let lang = document.getElementById("lang-select").value;
+            if(editor) monaco.editor.setModelLanguage(editor.getModel(), lang);
+            if (lang === "html") {
+                document.getElementById("tab-term").style.display = "none";
+                document.getElementById("tab-graf").style.display = "none";
+                document.getElementById("tab-html").style.display = "block";
+                switchTab('html');
+            } else {
+                document.getElementById("tab-html").style.display = "none";
+                document.getElementById("tab-term").style.display = "block";
+                document.getElementById("tab-graf").style.display = "block";
+                switchTab('terminal');
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`tab-${tabName === 'terminal' ? 'term' : tabName === 'grafici' ? 'graf' : 'html'}`).classList.add('active');
+            document.getElementById(`content-${tabName}`).classList.add('active');
+            if(tabName === 'terminal') term.focus();
+        }
+
+        // Ridimensionamento Finestre
+        const resizer = document.getElementById('resizer');
+        const bottomPanel = document.getElementById('bottom-panel');
+        let isResizing = false;
+        resizer.addEventListener('mousedown', () => { isResizing = true; document.body.style.cursor = 'row-resize'; bottomPanel.style.transition = 'none'; });
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            let newHeight = document.getElementById('workspace').getBoundingClientRect().bottom - e.clientY;
+            if (newHeight < 60) newHeight = 60;
+            bottomPanel.style.height = `${newHeight}px`;
+            if (term) term.fit?.();
+        });
+        document.addEventListener('mouseup', () => { if (isResizing) { isResizing = false; document.body.style.cursor = 'default'; bottomPanel.style.transition = 'height 0.3s'; }});
+
+        function togglePanel() {
+            bottomPanel.classList.toggle('collapsed');
+            if (!bottomPanel.classList.contains('collapsed')) setTimeout(() => { if (term) term.fit?.(); }, 350);
+        }
+
+        // Gestione File e Cartelle
+        async function openFolder() {
+            try {
+                nativeDirectoryHandle = await window.showDirectoryPicker();
+                await pyodideInstance.mountNativeFS("/workspace", nativeDirectoryHandle);
+                pyodideInstance.FS.chdir("/workspace");
+                term.write(`\r\n\x1b[32m[Directory]\x1b[0m Cartella montata in /workspace\r\n`);
+            } catch (err) {}
+        }
+
+        async function openFile() {
+            try {
+                [currentFileHandle] = await window.showOpenFilePicker();
+                const file = await currentFileHandle.getFile();
+                editor.setValue(await file.text());
+                document.getElementById("lang-select").value = file.name.endsWith('.html') ? "html" : "python";
+                changeLanguage();
+            } catch (e) {}
+        }
+        
+        async function saveFile() {
+            try {
+                if (currentFileHandle) {
+                    const writable = await currentFileHandle.createWritable();
+                    await writable.write(editor.getValue());
+                    await writable.close();
+                    term.write(`\r\n\x1b[32m[Sistema]\x1b[0m File '${currentFileHandle.name}' salvato.\r\n`);
+                    return;
+                }
+                if (nativeDirectoryHandle) {
+                    let fileName = prompt("Nome del file (es. main.py):");
+                    if (!fileName) return;
+                    currentFileHandle = await nativeDirectoryHandle.getFileHandle(fileName, { create: true });
+                    const writable = await currentFileHandle.createWritable();
+                    await writable.write(editor.getValue());
+                    await writable.close();
+                    term.write(`\r\n\x1b[32m[Sistema]\x1b[0m File creato e salvato.\r\n`);
+                    document.getElementById("lang-select").value = fileName.endsWith('.html') ? "html" : "python";
+                    changeLanguage();
+                    return;
+                }
+                const lang = document.getElementById("lang-select").value;
+                currentFileHandle = await window.showSaveFilePicker({ suggestedName: `main.${lang === "html" ? "html" : "py"}` });
+                const writable = await currentFileHandle.createWritable();
+                await writable.write(editor.getValue());
+                await writable.close();
+                term.write(`\r\n\x1b[32m[Sistema]\x1b[0m File salvato.\r\n`);
+            } catch (e) { if(e.name !== 'AbortError') term.write(`\r\n\x1b[31m[Errore]\x1b[0m ${e.message}\r\n`); }
+        }
+
+        document.body.addEventListener('dragover', (e) => e.preventDefault());
+        document.body.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            if (e.dataTransfer.items && e.dataTransfer.items[0].kind === 'file') {
+                const file = e.dataTransfer.items[0].getAsFile();
+                editor.setValue(await file.text());
+                currentFileHandle = null; 
+                document.getElementById("lang-select").value = file.name.endsWith('.html') ? "html" : "python";
+                changeLanguage();
+            }
+        });
+
+        // Esecuzione
+        async function installPackageModal() {
+            let pkg = prompt("Nome pacchetto (es. numpy, pandas):");
+            if(!pkg) return;
+            if(bottomPanel.classList.contains('collapsed')) togglePanel();
+            switchTab('terminal');
+            term.write(`\r\n\x1b[36m[Pip]\x1b[0m Installazione di '${pkg}'...\r\n`);
+            try {
+                await pyodideInstance.loadPackage("micropip");
+                await pyodideInstance.pyimport("micropip").install(pkg);
+                term.write(`\x1b[32m[Pip]\x1b[0m '${pkg}' installato!\r\n`);
+            } catch (err) { term.write(`\x1b[31m[Pip]\x1b[0m Errore: ${err.message}\r\n`); }
+        }
+
+        async function runCode() {
+            let code = editor.getValue();
+            let lang = document.getElementById("lang-select").value;
+            if(bottomPanel.classList.contains('collapsed')) togglePanel();
+
+            if (lang === "html") {
+                switchTab('html');
+                document.getElementById('html-preview').src = URL.createObjectURL(new Blob([code], {type: 'text/html'}));
+            } else {
+                switchTab('terminal');
+                term.write('\r\n\x1b[33m>>> Esecuzione...\x1b[0m\r\n');
+                if (code.includes('matplotlib.pyplot')) code = "import matplotlib.pyplot as plt\nimport matplotlib_show_patch\nplt.show = matplotlib_show_patch.show\n" + code;
+                pyodideInstance.setStdout({ batched: (str) => term.write(str + '\r\n') });
+                pyodideInstance.setStderr({ batched: (str) => term.write('\x1b[31m' + str + '\x1b[0m\r\n') });
+                try { await pyodideInstance.runPythonAsync(code); } 
+                catch (err) { term.write('\x1b[31m' + err.toString() + '\x1b[0m\r\n'); }
+            }
+        }
+
+        // Chat AI
+        function toggleAIPanel() {
+            const panel = document.getElementById("ai-panel");
+            panel.style.display = panel.style.display === "flex" ? "none" : "flex";
+        }
+
+        async function askAI() {
+            const input = document.getElementById('ai-input');
+            const chat = document.getElementById('ai-chat');
+            const question = input.value.trim();
+            if (!question) return;
+
+            let apiKey = localStorage.getItem('gemini_api_key');
+            if (!apiKey) {
+                apiKey = prompt("Per usare l'IA gratuita e i suggerimenti con Tab, inserisci la tua Google Gemini API Key (da aistudio.google.com):");
+                if (!apiKey) return;
+                localStorage.setItem('gemini_api_key', apiKey);
+            }
+
+            chat.innerHTML += `<div class="ai-msg user">${question}</div>`;
+            input.value = "";
+            chat.scrollTop = chat.scrollHeight;
+
+            const loaderId = "loader-" + Date.now();
+            chat.innerHTML += `<div class="ai-msg bot" id="${loaderId}">Sto analizzando il codice...</div>`;
+            chat.scrollTop = chat.scrollHeight;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `Codice attuale:\n\`\`\`\n${editor.getValue()}\n\`\`\`\nDomanda: ${question}` }] }] })
+                });
+                const data = await response.json();
+                if (data.error) {
+                    if(data.error.code === 400) localStorage.removeItem('gemini_api_key');
+                    throw new Error(data.error.message);
+                }
+                document.getElementById(loaderId).innerHTML = marked.parse(data.candidates[0].content.parts[0].text);
+            } catch (err) {
+                document.getElementById(loaderId).innerHTML = `❌ Errore: ${err.message}`;
+            }
+            chat.scrollTop = chat.scrollHeight;
+        }
+    </script>
+</body>
+</html>
