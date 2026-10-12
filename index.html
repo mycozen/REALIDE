@@ -415,7 +415,7 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
             } catch (err) { term.write(`\x1b[31m[Pip]\x1b[0m Errore: ${err.message}\r\n`); }
         }
 
-                async function runCode() {
+               async function runCode() {
             let code = editor.getValue();
             let lang = document.getElementById("lang-select").value;
             if(bottomPanel.classList.contains('collapsed')) togglePanel();
@@ -428,21 +428,30 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
                 term.write('\r\n\x1b[33m>>> Esecuzione avviata...\x1b[0m\r\n');
                 
                 try {
-                    // 1. AUTO-INSTALLAZIONE INTELLIGENTE
-                    // Legge il codice e scarica in automatico numpy, scipy, matplotlib ecc.
-                    term.write('\x1b[36m[Sistema]\x1b[0m Controllo e caricamento librerie necessarie...\r\n');
-                    await pyodideInstance.loadPackagesFromImports(code);
-
-                    // 2. INIEZIONE PATCH GRAFICI (Ora avviene in modo sicuro)
-                    if (code.includes('matplotlib.pyplot')) {
-                        code = "import matplotlib.pyplot as plt\nimport matplotlib_show_patch\nplt.show = matplotlib_show_patch.show\n" + code;
+                    // 1. FORZATURA LIBRERIE SCIENTIFICHE (Metodo Infallibile)
+                    // Analizza il codice e scarica le librerie bypassando i bug di Pyodide
+                    let pacchetti = [];
+                    if (code.includes('numpy')) pacchetti.push('numpy');
+                    if (code.includes('matplotlib')) pacchetti.push('matplotlib');
+                    if (code.includes('scipy')) pacchetti.push('scipy');
+                    if (code.includes('pandas')) pacchetti.push('pandas');
+                    
+                    if (pacchetti.length > 0) {
+                        term.write(`\x1b[36m[Sistema]\x1b[0m Download librerie in corso (${pacchetti.join(', ')})... Attendere.\r\n`);
+                        await pyodideInstance.loadPackage(pacchetti);
                     }
 
-                    // 3. ESECUZIONE
+                    // 2. INIEZIONE PATCH GRAFICI SU UNA COPIA DEL CODICE
+                    let patchedCode = code;
+                    if (patchedCode.includes('matplotlib.pyplot')) {
+                        patchedCode = "import matplotlib.pyplot as plt\nimport matplotlib_show_patch\nplt.show = matplotlib_show_patch.show\n" + patchedCode;
+                    }
+
+                    // 3. ESECUZIONE DEL CODICE
                     pyodideInstance.setStdout({ batched: (str) => term.write(str + '\r\n') });
                     pyodideInstance.setStderr({ batched: (str) => term.write('\x1b[31m' + str + '\x1b[0m\r\n') });
                     
-                    await pyodideInstance.runPythonAsync(code); 
+                    await pyodideInstance.runPythonAsync(patchedCode); 
                 } catch (err) { 
                     term.write('\x1b[31m' + err.toString() + '\x1b[0m\r\n'); 
                 }
