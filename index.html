@@ -440,6 +440,21 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
             panel.style.display = panel.style.display === "flex" ? "none" : "flex";
         }
 
+                // Funzione per estrarre gli ultimi output dal terminale (per far leggere gli errori all'IA)
+        function getTerminalContext() {
+            if (!term) return "";
+            let content = "";
+            let buffer = term.buffer.active;
+            // Prende le ultime 40 righe per non sovraccaricare la memoria dell'IA
+            let start = Math.max(0, buffer.cursorY - 40);
+            for (let i = start; i <= buffer.cursorY; i++) {
+                let line = buffer.getLine(i);
+                if (line) content += line.translateToString(true) + "\n";
+            }
+            return content.trim();
+        }
+
+        // Chat AI Aggiornata con Lettura Terminale e Pulsante "Applica"
         async function askAI() {
             const input = document.getElementById('ai-input');
             const chat = document.getElementById('ai-chat');
@@ -448,7 +463,7 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
 
             let apiKey = localStorage.getItem('gemini_api_key');
             if (!apiKey) {
-                apiKey = prompt("Per usare l'IA gratuita e i suggerimenti con Tab, inserisci la tua Google Gemini API Key (da aistudio.google.com):");
+                apiKey = prompt("Inserisci la tua Google Gemini API Key (da aistudio.google.com):");
                 if (!apiKey) return;
                 localStorage.setItem('gemini_api_key', apiKey);
             }
@@ -458,26 +473,94 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
             chat.scrollTop = chat.scrollHeight;
 
             const loaderId = "loader-" + Date.now();
-            chat.innerHTML += `<div class="ai-msg bot" id="${loaderId}">Sto analizzando il codice...</div>`;
+            chat.innerHTML += `<div class="ai-msg bot" id="${loaderId}">Sto analizzando codice ed errori...</div>`;
             chat.scrollTop = chat.scrollHeight;
 
+            // Raccoglie il contesto (Codice + Terminale)
+            const codeContext = editor.getValue();
+            const termContext = getTerminalContext();
+            
+            // Istruzioni specifiche per l'IA (le chiediamo di fornire il codice intero se fa correzioni)
+            const promptText = `
+L'utente fa questa richiesta: "${question}"
+
+Ecco il codice attualmente nell'editor:
+\`\`\`python
+${codeContext}
+\`\`\`
+
+Ecco le ultime righe del terminale (potrebbero contenere errori o output):
+\`\`\`text
+${termContext}
+\`\`\`
+
+Se l'utente ti chiede di correggere il codice o aggiungere una funzione, spiegagli brevemente cosa hai fatto, e poi restituisci l'INTERO CODICE CORRETTO all'interno di un blocco markdown \`\`\`python ... \`\`\` (così il sistema potrà estrarlo in automatico). Non omettere parti del codice.`;
+
             try {
+                // Ricorda che qui stiamo usando il modello 3.8-flash come hai chiesto!
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `Codice attuale:\n\`\`\`\n${editor.getValue()}\n\`\`\`\nDomanda: ${question}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
                 });
+                
                 const data = await response.json();
                 if (data.error) {
                     if(data.error.code === 400) localStorage.removeItem('gemini_api_key');
                     throw new Error(data.error.message);
                 }
-                document.getElementById(loaderId).innerHTML = marked.parse(data.candidates[0].content.parts[0].text);
+                
+                // Estrae la risposta e la converte in HTML
+                const aiText = data.candidates[0].content.parts[0].text;
+                let parsedHTML = marked.parse(aiText);
+                
+                // Crea un contenitore temporaneo per manipolare i blocchi di codice
+                let tempDiv = document.createElement('div');
+                tempDiv.innerHTML = parsedHTML;
+                
+                // Cerca tutti i blocchi di codice e aggiunge il pulsante "Applica"
+                let codeBlocks = tempDiv.querySelectorAll('pre code');
+                codeBlocks.forEach(block => {
+                    let codeString = block.innerText;
+                    
+                    let wrapper = document.createElement('div');
+                    wrapper.style.position = 'relative';
+                    wrapper.style.marginTop = '10px';
+                    
+                    let btn = document.createElement('button');
+                    btn.innerText = '✨ Applica Correzione';
+                    btn.style.position = 'absolute';
+                    btn.style.top = '5px';
+                    btn.style.right = '5px';
+                    btn.style.background = '#8a2be2';
+                    btn.style.border = 'none';
+                    btn.style.padding = '4px 8px';
+                    btn.style.fontSize = '11px';
+                    btn.style.borderRadius = '6px';
+                    
+                    // L'azione che avviene cliccando il pulsante
+                    btn.onclick = () => {
+                        editor.setValue(codeString);
+                        term.write('\\r\\n\\x1b[32m[IA]\\x1b[0m Codice applicato con successo!\\r\\n');
+                    };
+                    
+                    // Struttura il DOM per racchiudere il blocco di codice
+                    block.parentNode.parentNode.insertBefore(wrapper, block.parentNode);
+                    wrapper.appendChild(block.parentNode);
+                    wrapper.appendChild(btn);
+                });
+
+                // Inserisce il risultato finale nella chat
+                let msgContainer = document.getElementById(loaderId);
+                msgContainer.innerHTML = '';
+                msgContainer.appendChild(tempDiv);
+                
             } catch (err) {
                 document.getElementById(loaderId).innerHTML = `❌ Errore: ${err.message}`;
             }
             chat.scrollTop = chat.scrollHeight;
         }
+
     </script>
 </body>
 </html>
