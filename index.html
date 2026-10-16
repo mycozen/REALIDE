@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MZ REALIDE - easy code exp</title>
+    <title>verIDLE Web - Glass & AI Edition</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
-            --accent: #8a2be2; /* Viola acceso */
+            --accent: #8a2be2;
             --text: #e0e0e0;
             --tab-active: rgba(255, 255, 255, 0.15);
         }
@@ -21,7 +21,6 @@
         body, html {
             margin: 0; padding: 0; height: 100%; width: 100%;
             font-family: 'Inter', sans-serif; color: var(--text);
-            /* Sfondo viola profondo animato */
             background: linear-gradient(-45deg, #1e0b36, #2d1055, #18082c, #0a0314);
             background-size: 400% 400%; animation: gradientBG 20s ease infinite;
             overflow: hidden; display: flex; flex-direction: column;
@@ -33,9 +32,8 @@
             100% { background-position: 0% 50%; }
         }
 
-        /* Classe Glassmorphism Universale */
         .glass {
-            background: rgba(30, 15, 60, 0.35); /* Trasparenza viola */
+            background: rgba(30, 15, 60, 0.35);
             backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.08);
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
@@ -63,9 +61,7 @@
             padding: 15px; gap: 0; overflow: hidden; position: relative;
         }
 
-        #editor-container {
-            flex-grow: 1; min-height: 100px; border-radius: 12px; overflow: hidden;
-        }
+        #editor-container { flex-grow: 1; min-height: 100px; border-radius: 12px; overflow: hidden; }
 
         .resizer {
             height: 12px; cursor: row-resize; display: flex; justify-content: center; align-items: center;
@@ -101,30 +97,24 @@
         .plot-container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); max-width: 95%; }
         .plot-container img { max-width: 100%; height: auto; border-radius: 4px; }
 
-        /* AI Panel Glassmorphism */
         #ai-panel {
-            position: absolute; top: 15px; right: 15px; width: 350px; height: calc(100% - 30px);
+            position: absolute; top: 15px; right: 15px; width: 400px; height: calc(100% - 30px);
             border-radius: 12px; display: none; flex-direction: column; z-index: 50;
         }
         .ai-header { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.08); font-weight: 600; }
         .ai-chat { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; font-size: 13px; line-height: 1.5; }
         .ai-input-area { padding: 15px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 10px; }
-        .ai-msg { padding: 10px 12px; border-radius: 12px; max-width: 85%; }
+        .ai-msg { padding: 10px 12px; border-radius: 12px; max-width: 90%; }
         .ai-msg.user { background: var(--accent); align-self: flex-end; }
-        .ai-msg.bot { background: rgba(0,0,0,0.3); align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); }
-        .ai-msg pre { background: rgba(0,0,0,0.5); padding: 8px; border-radius: 6px; overflow-x: auto; }
+        .ai-msg.bot { background: rgba(0,0,0,0.4); align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); }
+        .ai-msg pre { background: rgba(0,0,0,0.6); padding: 8px; border-radius: 6px; overflow-x: auto; margin-top: 25px; }
         .ai-msg code { font-family: 'Consolas', monospace; }
 
-        /* Piastrina Copyright Galleggiante */
         .copyright { 
-            position: fixed; bottom: 15px; right: 15px; 
-            font-size: 11px; color: rgba(255, 255, 255, 0.7); 
-            z-index: 10; pointer-events: none;
-            padding: 6px 14px; border-radius: 20px;
-            background: rgba(30, 15, 60, 0.4);
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            position: fixed; bottom: 15px; right: 15px; font-size: 11px; color: rgba(255, 255, 255, 0.7); 
+            z-index: 10; pointer-events: none; padding: 6px 14px; border-radius: 20px;
+            background: rgba(30, 15, 60, 0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
     </style>
 </head>
@@ -143,7 +133,7 @@
         <button onclick="togglePanel()" id="btn-toggle-panel">👁️ Pannello</button>
         <button onclick="toggleAIPanel()" style="color: #d896ff; border-color: #d896ff;">🤖 Assistente IA</button>
         <div style="flex-grow: 1;"></div>
-        <button class="btn-run" onclick="runCode()">▶ Esegui</button>
+        <button class="btn-run" onclick="runCode()" id="run-btn">▶ Esegui</button>
     </div>
 
     <div class="workspace" id="workspace">
@@ -173,11 +163,11 @@
 
         <div id="ai-panel" class="glass">
             <div class="ai-header">
-                <span>🤖 Gemini Copilot</span>
+                <span>🤖 Gemini Copilot (3.8 Flash)</span>
                 <button onclick="toggleAIPanel()" style="padding: 2px 8px; border:none; background:transparent;">✕</button>
             </div>
             <div class="ai-chat" id="ai-chat">
-                <div class="ai-msg bot">Ciao! Inserisci la tua chiave API per sbloccare la chat e il completamento automatico (Ghost Text) con il tasto Tab.</div>
+                <div class="ai-msg bot">Ciao! Inserisci la tua chiave API per sbloccare il completamento e le correzioni automatiche in chat. Posso leggere sia il codice che il terminale.</div>
             </div>
             <div class="ai-input-area">
                 <input type="text" id="ai-input" placeholder="Chiedi qualcosa..." style="flex-grow: 1; background: rgba(0,0,0,0.3);" onkeypress="if(event.key === 'Enter') askAI()">
@@ -202,9 +192,13 @@
         term.open(document.getElementById('terminal'));
         term.write('\x1b[35m[Sistema]\x1b[0m Inizializzazione Pyodide (Python)...\r\n');
 
-        // Inizializzazione Motore Python
+        // Promessa globale per assicurarci che Pyodide sia caricato prima dell'esecuzione
+        let pyodideReadyPromise = initPyodide();
+
         async function initPyodide() {
             pyodideInstance = await loadPyodide({ stdin: () => prompt("Input richiesto dal terminale:") });
+            
+            // Inizializza la patch per i grafici nel sistema interno, senza eseguire import immediati
             await pyodideInstance.runPythonAsync(`
 import sys, base64, js
 def _custom_show(*args, **kwargs):
@@ -221,7 +215,6 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
             `);
             term.write('\x1b[32m[Sistema]\x1b[0m Motore Python Pronto.\r\n');
         }
-        initPyodide();
 
         window.displayPlot = function(base64str) {
             const wrapper = document.getElementById('grafici-wrapper');
@@ -233,24 +226,22 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
             if (!document.getElementById('bottom-panel').classList.contains('collapsed')) switchTab('grafici');
         };
 
-        // Inizializzazione Editor e Autocompletamento IA (Copilot Style)
+        // Editor e Completamento (Gemini 3.8 Flash)
         require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }});
         require(['vs/editor/editor.main'], function() {
             editor = monaco.editor.create(document.getElementById('editor-container'), {
                 value: "", language: 'python', theme: 'vs-dark', automaticLayout: true,
                 minimap: { enabled: false }, overviewRulerLanes: 0, hideCursorInOverviewRuler: true,
                 scrollbar: { vertical: 'visible' }, fontFamily: 'Consolas', fontSize: 14, padding: { top: 15 },
-                inlineSuggest: { enabled: true } // Abilita i suggerimenti fantasma
+                inlineSuggest: { enabled: true }
             });
 
-            // Tema per il Glassmorphism
             monaco.editor.defineTheme('glass', {
                 base: 'vs-dark', inherit: true, rules: [{ background: 'transparent' }],
                 colors: { 'editor.background': '#00000000' }
             });
             monaco.editor.setTheme('glass');
 
-            // Logica per il Completamento IA
             let debounceTimer;
             monaco.languages.registerInlineCompletionsProvider('python', {
                 provideInlineCompletions: async function(model, position, context, token) {
@@ -258,44 +249,31 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
                     if (!apiKey) return { items: [] };
 
                     const textBeforeCursor = model.getValueInRange({
-                        startLineNumber: Math.max(1, position.lineNumber - 20), // Ultime 20 righe per contesto
-                        startColumn: 1,
-                        endLineNumber: position.lineNumber,
-                        endColumn: position.column
+                        startLineNumber: Math.max(1, position.lineNumber - 20),
+                        startColumn: 1, endLineNumber: position.lineNumber, endColumn: position.column
                     });
 
                     return new Promise((resolve) => {
                         clearTimeout(debounceTimer);
                         debounceTimer = setTimeout(async () => {
                             if (token.isCancellationRequested) return resolve({ items: [] });
-                            
                             try {
                                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ 
-                                        contents: [{ parts: [{ text: `Completa il seguente codice Python in modo naturale. Restituisci SOLO il codice da aggiungere, senza formattazione markdown o spiegazioni:\n\n${textBeforeCursor}` }] }] 
-                                    })
+                                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ contents: [{ parts: [{ text: `Completa il seguente codice Python. Restituisci SOLO il codice da aggiungere:\n\n${textBeforeCursor}` }] }] })
                                 });
                                 const data = await response.json();
                                 let suggestion = data.candidates[0].content.parts[0].text;
-                                suggestion = suggestion.replace(/^```python\n/, '').replace(/\n```$/, ''); // Rimuove blocchi markdown
-
-                                resolve({
-                                    items: [{
-                                        insertText: suggestion,
-                                        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
-                                    }]
-                                });
+                                suggestion = suggestion.replace(/^```python\n/, '').replace(/\n```$/, '');
+                                resolve({ items: [{ insertText: suggestion, range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column) }] });
                             } catch (e) { resolve({ items: [] }); }
-                        }, 800); // 800ms di inattività prima di chiedere all'IA
+                        }, 800);
                     });
-                },
-                freeInlineCompletions: () => {}
+                }, freeInlineCompletions: () => {}
             });
         });
 
-        // Gestione Interfaccia
+        // Interfaccia e Finestre
         function changeLanguage() {
             let lang = document.getElementById("lang-select").value;
             if(editor) monaco.editor.setModelLanguage(editor.getModel(), lang);
@@ -320,7 +298,6 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
             if(tabName === 'terminal') term.focus();
         }
 
-        // Ridimensionamento Finestre
         const resizer = document.getElementById('resizer');
         const bottomPanel = document.getElementById('bottom-panel');
         let isResizing = false;
@@ -339,10 +316,11 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
             if (!bottomPanel.classList.contains('collapsed')) setTimeout(() => { if (term) term.fit?.(); }, 350);
         }
 
-        // Gestione File e Cartelle
+        // File System
         async function openFolder() {
             try {
                 nativeDirectoryHandle = await window.showDirectoryPicker();
+                await pyodideReadyPromise;
                 await pyodideInstance.mountNativeFS("/workspace", nativeDirectoryHandle);
                 pyodideInstance.FS.chdir("/workspace");
                 term.write(`\r\n\x1b[32m[Directory]\x1b[0m Cartella montata in /workspace\r\n`);
@@ -401,7 +379,7 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
             }
         });
 
-        // Esecuzione
+        // Esecuzione Infallibile Pyodide
         async function installPackageModal() {
             let pkg = prompt("Nome pacchetto (es. numpy, pandas):");
             if(!pkg) return;
@@ -409,13 +387,14 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
             switchTab('terminal');
             term.write(`\r\n\x1b[36m[Pip]\x1b[0m Installazione di '${pkg}'...\r\n`);
             try {
+                await pyodideReadyPromise;
                 await pyodideInstance.loadPackage("micropip");
                 await pyodideInstance.pyimport("micropip").install(pkg);
                 term.write(`\x1b[32m[Pip]\x1b[0m '${pkg}' installato!\r\n`);
             } catch (err) { term.write(`\x1b[31m[Pip]\x1b[0m Errore: ${err.message}\r\n`); }
         }
 
-               async function runCode() {
+        async function runCode() {
             let code = editor.getValue();
             let lang = document.getElementById("lang-select").value;
             if(bottomPanel.classList.contains('collapsed')) togglePanel();
@@ -425,52 +404,46 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
                 document.getElementById('html-preview').src = URL.createObjectURL(new Blob([code], {type: 'text/html'}));
             } else {
                 switchTab('terminal');
-                term.write('\r\n\x1b[33m>>> Esecuzione avviata...\x1b[0m\r\n');
+                document.getElementById('run-btn').innerText = "⏳ Attendere...";
                 
                 try {
-                    // 1. FORZATURA LIBRERIE SCIENTIFICHE (Metodo Infallibile)
-                    // Analizza il codice e scarica le librerie bypassando i bug di Pyodide
-                    let pacchetti = [];
-                    if (code.includes('numpy')) pacchetti.push('numpy');
-                    if (code.includes('matplotlib')) pacchetti.push('matplotlib');
-                    if (code.includes('scipy')) pacchetti.push('scipy');
-                    if (code.includes('pandas')) pacchetti.push('pandas');
-                    
-                    if (pacchetti.length > 0) {
-                        term.write(`\x1b[36m[Sistema]\x1b[0m Download librerie in corso (${pacchetti.join(', ')})... Attendere.\r\n`);
-                        await pyodideInstance.loadPackage(pacchetti);
-                    }
+                    // Aspettiamo che il motore sia inizializzato in modo sicuro
+                    await pyodideReadyPromise;
+                    term.write('\r\n\x1b[33m>>> Esecuzione avviata...\x1b[0m\r\n');
 
-                    // 2. INIEZIONE PATCH GRAFICI SU UNA COPIA DEL CODICE
+                    // Creiamo una copia "Patchata" del codice per far scansionare la libreria a Pyodide
                     let patchedCode = code;
-                    if (patchedCode.includes('matplotlib.pyplot')) {
-                        patchedCode = "import matplotlib.pyplot as plt\nimport matplotlib_show_patch\nplt.show = matplotlib_show_patch.show\n" + patchedCode;
+                    if (patchedCode.includes('matplotlib') || patchedCode.includes('plt.show')) {
+                        patchedCode = "import matplotlib.pyplot as plt\nimport matplotlib_show_patch\nplt.show = matplotlib_show_patch.show\n\n" + patchedCode;
                     }
 
-                    // 3. ESECUZIONE DEL CODICE
+                    // Questo comando analizza il testo di patchedCode e scarica TUTTE le librerie trovate 
+                    term.write('\x1b[36m[Sistema]\x1b[0m Verifica e caricamento librerie (potrebbe richiedere qualche secondo)...\r\n');
+                    await pyodideInstance.loadPackagesFromImports(patchedCode);
+
+                    // Reindirizzamento dell'output e avvio
                     pyodideInstance.setStdout({ batched: (str) => term.write(str + '\r\n') });
                     pyodideInstance.setStderr({ batched: (str) => term.write('\x1b[31m' + str + '\x1b[0m\r\n') });
                     
                     await pyodideInstance.runPythonAsync(patchedCode); 
                 } catch (err) { 
                     term.write('\x1b[31m' + err.toString() + '\x1b[0m\r\n'); 
+                } finally {
+                    document.getElementById('run-btn').innerText = "▶ Esegui";
                 }
             }
         }
 
-
-        // Chat AI
+        // Chat AI con Lettura Errori Terminale (Gemini 3.8 Flash)
         function toggleAIPanel() {
             const panel = document.getElementById("ai-panel");
             panel.style.display = panel.style.display === "flex" ? "none" : "flex";
         }
 
-                // Funzione per estrarre gli ultimi output dal terminale (per far leggere gli errori all'IA)
         function getTerminalContext() {
             if (!term) return "";
             let content = "";
             let buffer = term.buffer.active;
-            // Prende le ultime 40 righe per non sovraccaricare la memoria dell'IA
             let start = Math.max(0, buffer.cursorY - 40);
             for (let i = start; i <= buffer.cursorY; i++) {
                 let line = buffer.getLine(i);
@@ -479,7 +452,6 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
             return content.trim();
         }
 
-        // Chat AI Aggiornata con Lettura Terminale e Pulsante "Applica"
         async function askAI() {
             const input = document.getElementById('ai-input');
             const chat = document.getElementById('ai-chat');
@@ -488,7 +460,7 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
 
             let apiKey = localStorage.getItem('gemini_api_key');
             if (!apiKey) {
-                apiKey = prompt("Inserisci la tua Google Gemini API Key (da aistudio.google.com):");
+                apiKey = prompt("Inserisci la tua API Key (da aistudio.google.com):");
                 if (!apiKey) return;
                 localStorage.setItem('gemini_api_key', apiKey);
             }
@@ -501,91 +473,58 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
             chat.innerHTML += `<div class="ai-msg bot" id="${loaderId}">Sto analizzando codice ed errori...</div>`;
             chat.scrollTop = chat.scrollHeight;
 
-            // Raccoglie il contesto (Codice + Terminale)
             const codeContext = editor.getValue();
             const termContext = getTerminalContext();
             
-            // Istruzioni specifiche per l'IA (le chiediamo di fornire il codice intero se fa correzioni)
-            const promptText = `
-L'utente fa questa richiesta: "${question}"
-
-Ecco il codice attualmente nell'editor:
-\`\`\`python
-${codeContext}
-\`\`\`
-
-Ecco le ultime righe del terminale (potrebbero contenere errori o output):
-\`\`\`text
-${termContext}
-\`\`\`
-
-Se l'utente ti chiede di correggere il codice o aggiungere una funzione, spiegagli brevemente cosa hai fatto, e poi restituisci l'INTERO CODICE CORRETTO all'interno di un blocco markdown \`\`\`python ... \`\`\` (così il sistema potrà estrarlo in automatico). Non omettere parti del codice.`;
+            const promptText = `L'utente fa questa richiesta: "${question}"\n\nCodice attuale:\n\`\`\`python\n${codeContext}\n\`\`\`\n\nUltime righe del terminale (possibili errori):\n\`\`\`text\n${termContext}\n\`\`\`\n\nSe devi correggere il codice, spiega cosa hai fatto e restituisci l'INTERO CODICE CORRETTO all'interno di un blocco markdown \`\`\`python ... \`\`\`.`;
 
             try {
-                // Ricorda che qui stiamo usando il modello 3.8-flash come hai chiesto!
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
                 });
-                
                 const data = await response.json();
                 if (data.error) {
                     if(data.error.code === 400) localStorage.removeItem('gemini_api_key');
                     throw new Error(data.error.message);
                 }
                 
-                // Estrae la risposta e la converte in HTML
-                const aiText = data.candidates[0].content.parts[0].text;
-                let parsedHTML = marked.parse(aiText);
-                
-                // Crea un contenitore temporaneo per manipolare i blocchi di codice
+                let parsedHTML = marked.parse(data.candidates[0].content.parts[0].text);
                 let tempDiv = document.createElement('div');
                 tempDiv.innerHTML = parsedHTML;
                 
-                // Cerca tutti i blocchi di codice e aggiunge il pulsante "Applica"
-                let codeBlocks = tempDiv.querySelectorAll('pre code');
-                codeBlocks.forEach(block => {
+                // Aggiunge il pulsante "Applica Correzione" ai blocchi di codice
+                tempDiv.querySelectorAll('pre code').forEach(block => {
                     let codeString = block.innerText;
-                    
                     let wrapper = document.createElement('div');
                     wrapper.style.position = 'relative';
-                    wrapper.style.marginTop = '10px';
+                    wrapper.style.marginTop = '25px';
                     
                     let btn = document.createElement('button');
                     btn.innerText = '✨ Applica Correzione';
                     btn.style.position = 'absolute';
-                    btn.style.top = '5px';
-                    btn.style.right = '5px';
-                    btn.style.background = '#8a2be2';
-                    btn.style.border = 'none';
-                    btn.style.padding = '4px 8px';
-                    btn.style.fontSize = '11px';
-                    btn.style.borderRadius = '6px';
+                    btn.style.top = '-20px'; btn.style.right = '0';
+                    btn.style.background = '#8a2be2'; btn.style.border = 'none';
+                    btn.style.padding = '4px 8px'; btn.style.fontSize = '11px'; btn.style.borderRadius = '6px';
                     
-                    // L'azione che avviene cliccando il pulsante
                     btn.onclick = () => {
                         editor.setValue(codeString);
-                        term.write('\\r\\n\\x1b[32m[IA]\\x1b[0m Codice applicato con successo!\\r\\n');
+                        term.write('\r\n\x1b[32m[IA]\x1b[0m Codice applicato con successo!\r\n');
                     };
                     
-                    // Struttura il DOM per racchiudere il blocco di codice
                     block.parentNode.parentNode.insertBefore(wrapper, block.parentNode);
                     wrapper.appendChild(block.parentNode);
                     wrapper.appendChild(btn);
                 });
 
-                // Inserisce il risultato finale nella chat
                 let msgContainer = document.getElementById(loaderId);
                 msgContainer.innerHTML = '';
                 msgContainer.appendChild(tempDiv);
-                
             } catch (err) {
                 document.getElementById(loaderId).innerHTML = `❌ Errore: ${err.message}`;
             }
             chat.scrollTop = chat.scrollHeight;
         }
-
     </script>
 </body>
 </html>
