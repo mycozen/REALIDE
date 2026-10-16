@@ -395,39 +395,6 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
         }
 
         // Funzione ricorsiva intelligente: se il codice fallisce per una libreria mancante, la installa e riprova.
-        async function runPythonWithAutoHealing(codeToRun, retries) {
-            try {
-                await pyodideInstance.runPythonAsync(codeToRun);
-            } catch (err) {
-                let errMsg = err.toString();
-                
-                // Cerca l'errore esatto mostrato nel tuo terminale o il classico ModuleNotFoundError
-                let match = errMsg.match(/ModuleNotFoundError: No module named '([^']+)'/) ||
-                            errMsg.match(/The module '([^']+)' is included in the Pyodide/);
-
-                if (match && retries > 0) {
-                    let missingMod = match[1].split('.')[0]; // Estrae la radice (es. 'scipy' da 'scipy.optimize')
-                    term.write(`\x1b[36m[Auto-Install]\x1b[0m Rilevato modulo '${missingMod}' mancante. Download in corso...\r\n`);
-                    
-                    try {
-                        await pyodideInstance.loadPackage("micropip");
-                        const micropip = pyodideInstance.pyimport("micropip");
-                        await micropip.install(missingMod);
-                        term.write(`\x1b[32m[Auto-Install]\x1b[0m '${missingMod}' pronto! Riprendo l'esecuzione...\r\n`);
-                        
-                        // Ritenta l'esecuzione automaticamente senza farti fare nulla
-                        await runPythonWithAutoHealing(codeToRun, retries - 1);
-                    } catch (installErr) {
-                        term.write('\x1b[31m' + errMsg + '\x1b[0m\r\n');
-                        term.write(`\x1b[31m[Errore]\x1b[0m Impossibile scaricare '${missingMod}'.\r\n`);
-                    }
-                } else {
-                    // Se non è un errore di modulo (es. errore di sintassi) o finiamo i tentativi, stampa l'errore
-                    term.write('\x1b[31m' + errMsg + '\x1b[0m\r\n');
-                }
-            }
-        }
-
         async function runCode() {
             let code = editor.getValue();
             let lang = document.getElementById("lang-select").value;
@@ -446,18 +413,33 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
                     await pyodideReadyPromise;
                     term.write('\r\n\x1b[33m>>> Esecuzione avviata...\x1b[0m\r\n');
 
-                    // 1. COPIA FANTASMA PER I GRAFICI (Il tuo codice originale resta puro)
+                    // 1. PRE-LOAD FORZATO (Invisibile al tuo codice Python)
+                    // Il motore dell'IDE controlla se usi librerie scientifiche e le scarica nativamente
+                    let pacchettiDaForzare = [];
+                    if (code.includes('numpy')) pacchettiDaForzare.push('numpy');
+                    if (code.includes('matplotlib') || code.includes('plt.')) pacchettiDaForzare.push('matplotlib');
+                    if (code.includes('scipy')) pacchettiDaForzare.push('scipy');
+                    if (code.includes('pandas')) pacchettiDaForzare.push('pandas');
+
+                    if (pacchettiDaForzare.length > 0) {
+                        term.write(`\x1b[36m[Sistema]\x1b[0m Caricamento moduli in corso (${pacchettiDaForzare.join(', ')})...\r\n`);
+                        await pyodideInstance.loadPackage(pacchettiDaForzare);
+                    }
+
+                    // 2. PATCH DEI GRAFICI (Su una copia fantasma)
                     let patchedCode = code;
                     if (patchedCode.includes('matplotlib') || patchedCode.includes('plt.')) {
                         patchedCode = "import matplotlib.pyplot as plt\nimport matplotlib_show_patch\nplt.show = matplotlib_show_patch.show\n\n" + patchedCode;
                     }
 
-                    // 2. REINDIRIZZAMENTO OUTPUT AL TERMINALE
+                    // 3. AUTO-INSTALLAZIONE ALTRI PACCHETTI (es. tramite micropip se necessari)
+                    await pyodideInstance.loadPackagesFromImports(patchedCode);
+
+                    // 4. ESECUZIONE
                     pyodideInstance.setStdout({ batched: (str) => term.write(str + '\r\n') });
                     pyodideInstance.setStderr({ batched: (str) => term.write('\x1b[31m' + str + '\x1b[0m\r\n') });
                     
-                    // 3. ESECUZIONE CON AUTO-GUARIGIONE (Consente fino a 5 download a cascata)
-                    await runPythonWithAutoHealing(patchedCode, 5); 
+                    await pyodideInstance.runPythonAsync(patchedCode); 
                     
                 } catch (err) { 
                     term.write('\x1b[31m' + err.toString() + '\x1b[0m\r\n'); 
