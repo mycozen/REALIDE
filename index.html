@@ -411,17 +411,30 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
                     await pyodideReadyPromise;
                     term.write('\r\n\x1b[33m>>> Esecuzione avviata...\x1b[0m\r\n');
 
-                    // Creiamo una copia "Patchata" del codice per far scansionare la libreria a Pyodide
+                    // 1. PRE-DOWNLOAD GARANTITO (Invisibile in Python, gestito dal Web)
+                    // Il sito legge il tuo codice Python standard e forza il download delle librerie pesanti
+                    let pacchettiDaForzare = [];
+                    if (code.includes('numpy')) pacchettiDaForzare.push('numpy');
+                    if (code.includes('matplotlib') || code.includes('plt.')) pacchettiDaForzare.push('matplotlib');
+                    if (code.includes('scipy')) pacchettiDaForzare.push('scipy');
+                    if (code.includes('pandas')) pacchettiDaForzare.push('pandas');
+
+                    if (pacchettiDaForzare.length > 0) {
+                        term.write(`\x1b[36m[Sistema]\x1b[0m Pre-caricamento librerie scientifiche in corso (${pacchettiDaForzare.join(', ')})...\r\n`);
+                        await pyodideInstance.loadPackage(pacchettiDaForzare);
+                    }
+
+                    // 2. COPIA FANTASMA PER I GRAFICI
+                    // Creiamo una copia "Patchata" del codice solo per catturare l'immagine, il tuo codice originale non viene toccato
                     let patchedCode = code;
-                    if (patchedCode.includes('matplotlib') || patchedCode.includes('plt.show')) {
+                    if (patchedCode.includes('matplotlib') || patchedCode.includes('plt.')) {
                         patchedCode = "import matplotlib.pyplot as plt\nimport matplotlib_show_patch\nplt.show = matplotlib_show_patch.show\n\n" + patchedCode;
                     }
 
-                    // Questo comando analizza il testo di patchedCode e scarica TUTTE le librerie trovate 
-                    term.write('\x1b[36m[Sistema]\x1b[0m Verifica e caricamento librerie (potrebbe richiedere qualche secondo)...\r\n');
+                    // Scannerizza eventuali altri pacchetti minori sfuggiti al controllo principale
                     await pyodideInstance.loadPackagesFromImports(patchedCode);
 
-                    // Reindirizzamento dell'output e avvio
+                    // Reindirizzamento dell'output ed esecuzione della copia fantasma
                     pyodideInstance.setStdout({ batched: (str) => term.write(str + '\r\n') });
                     pyodideInstance.setStderr({ batched: (str) => term.write('\x1b[31m' + str + '\x1b[0m\r\n') });
                     
@@ -433,7 +446,6 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
                 }
             }
         }
-
         // Chat AI con Lettura Errori Terminale (Gemini 3.8 Flash)
         function toggleAIPanel() {
             const panel = document.getElementById("ai-panel");
