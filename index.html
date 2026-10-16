@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>verIDLE Web - Glass & AI Edition</title>
+    <title>REALIDE - Glass & AI Edition</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
@@ -394,6 +394,40 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
             } catch (err) { term.write(`\x1b[31m[Pip]\x1b[0m Errore: ${err.message}\r\n`); }
         }
 
+        // Funzione ricorsiva intelligente: se il codice fallisce per una libreria mancante, la installa e riprova.
+        async function runPythonWithAutoHealing(codeToRun, retries) {
+            try {
+                await pyodideInstance.runPythonAsync(codeToRun);
+            } catch (err) {
+                let errMsg = err.toString();
+                
+                // Cerca l'errore esatto mostrato nel tuo terminale o il classico ModuleNotFoundError
+                let match = errMsg.match(/ModuleNotFoundError: No module named '([^']+)'/) ||
+                            errMsg.match(/The module '([^']+)' is included in the Pyodide/);
+
+                if (match && retries > 0) {
+                    let missingMod = match[1].split('.')[0]; // Estrae la radice (es. 'scipy' da 'scipy.optimize')
+                    term.write(`\x1b[36m[Auto-Install]\x1b[0m Rilevato modulo '${missingMod}' mancante. Download in corso...\r\n`);
+                    
+                    try {
+                        await pyodideInstance.loadPackage("micropip");
+                        const micropip = pyodideInstance.pyimport("micropip");
+                        await micropip.install(missingMod);
+                        term.write(`\x1b[32m[Auto-Install]\x1b[0m '${missingMod}' pronto! Riprendo l'esecuzione...\r\n`);
+                        
+                        // Ritenta l'esecuzione automaticamente senza farti fare nulla
+                        await runPythonWithAutoHealing(codeToRun, retries - 1);
+                    } catch (installErr) {
+                        term.write('\x1b[31m' + errMsg + '\x1b[0m\r\n');
+                        term.write(`\x1b[31m[Errore]\x1b[0m Impossibile scaricare '${missingMod}'.\r\n`);
+                    }
+                } else {
+                    // Se non è un errore di modulo (es. errore di sintassi) o finiamo i tentativi, stampa l'errore
+                    term.write('\x1b[31m' + errMsg + '\x1b[0m\r\n');
+                }
+            }
+        }
+
         async function runCode() {
             let code = editor.getValue();
             let lang = document.getElementById("lang-select").value;
@@ -404,45 +438,32 @@ sys.modules['matplotlib_show_patch'] = type('Patch', (), {'show': _custom_show})
                 document.getElementById('html-preview').src = URL.createObjectURL(new Blob([code], {type: 'text/html'}));
             } else {
                 switchTab('terminal');
-                document.getElementById('run-btn').innerText = "⏳ Attendere...";
+                const runBtn = document.getElementById('run-btn');
+                runBtn.innerText = "⏳ Attendere...";
+                runBtn.disabled = true; // Evita doppi click durante il calcolo
                 
                 try {
-                    // Aspettiamo che il motore sia inizializzato in modo sicuro
                     await pyodideReadyPromise;
                     term.write('\r\n\x1b[33m>>> Esecuzione avviata...\x1b[0m\r\n');
 
-                    // 1. PRE-DOWNLOAD GARANTITO (Invisibile in Python, gestito dal Web)
-                    // Il sito legge il tuo codice Python standard e forza il download delle librerie pesanti
-                    let pacchettiDaForzare = [];
-                    if (code.includes('numpy')) pacchettiDaForzare.push('numpy');
-                    if (code.includes('matplotlib') || code.includes('plt.')) pacchettiDaForzare.push('matplotlib');
-                    if (code.includes('scipy')) pacchettiDaForzare.push('scipy');
-                    if (code.includes('pandas')) pacchettiDaForzare.push('pandas');
-
-                    if (pacchettiDaForzare.length > 0) {
-                        term.write(`\x1b[36m[Sistema]\x1b[0m Pre-caricamento librerie scientifiche in corso (${pacchettiDaForzare.join(', ')})...\r\n`);
-                        await pyodideInstance.loadPackage(pacchettiDaForzare);
-                    }
-
-                    // 2. COPIA FANTASMA PER I GRAFICI
-                    // Creiamo una copia "Patchata" del codice solo per catturare l'immagine, il tuo codice originale non viene toccato
+                    // 1. COPIA FANTASMA PER I GRAFICI (Il tuo codice originale resta puro)
                     let patchedCode = code;
                     if (patchedCode.includes('matplotlib') || patchedCode.includes('plt.')) {
                         patchedCode = "import matplotlib.pyplot as plt\nimport matplotlib_show_patch\nplt.show = matplotlib_show_patch.show\n\n" + patchedCode;
                     }
 
-                    // Scannerizza eventuali altri pacchetti minori sfuggiti al controllo principale
-                    await pyodideInstance.loadPackagesFromImports(patchedCode);
-
-                    // Reindirizzamento dell'output ed esecuzione della copia fantasma
+                    // 2. REINDIRIZZAMENTO OUTPUT AL TERMINALE
                     pyodideInstance.setStdout({ batched: (str) => term.write(str + '\r\n') });
                     pyodideInstance.setStderr({ batched: (str) => term.write('\x1b[31m' + str + '\x1b[0m\r\n') });
                     
-                    await pyodideInstance.runPythonAsync(patchedCode); 
+                    // 3. ESECUZIONE CON AUTO-GUARIGIONE (Consente fino a 5 download a cascata)
+                    await runPythonWithAutoHealing(patchedCode, 5); 
+                    
                 } catch (err) { 
                     term.write('\x1b[31m' + err.toString() + '\x1b[0m\r\n'); 
                 } finally {
-                    document.getElementById('run-btn').innerText = "▶ Esegui";
+                    runBtn.innerText = "▶ Esegui";
+                    runBtn.disabled = false;
                 }
             }
         }
